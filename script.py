@@ -108,29 +108,32 @@ class EmailMonitor:
             logging.error(f"Initial setup error: {e}")
 
     def run(self):
-        """Main loop to monitor and process emails."""
-        while True:
-            try:
-                self.fetcher.connect()
-                ids = self.fetcher.get_email_ids_since(self.search_date)
-                if ids:
-                    latest_id = max(ids)
-                    if latest_id > self.last_processed_id:
-                        for eid in ids:
-                            if eid > self.last_processed_id:
-                                msg = self.fetcher.fetch_email(eid)
-                                data = EmailProcessor.extract_details(msg)
-                                success = self.sender.send(data)
-                                if success:
-                                    logging.info(f"Sent email {eid} to webhook")
-                                else:
-                                    logging.error(f"Failed to send email {eid}")
-                        self.last_processed_id = latest_id
-                self.fetcher.logout()
-            except Exception as e:
-                logging.error(f"Error: {e}")
-            time.sleep(60)
+        """Run one email check cycle."""
+        try:
+            self.fetcher.connect()
+            ids = self.fetcher.get_email_ids_since(self.search_date)
+
+            if ids:
+                latest_id = max(ids)
+                if latest_id > self.last_processed_id:
+                    for eid in ids:
+                        if eid > self.last_processed_id:
+                            msg = self.fetcher.fetch_email(eid)
+                            data = EmailProcessor.extract_details(msg)
+                            success = self.sender.send(data)
+
+                            if success:
+                                logging.info(f"Sent email {eid} to webhook")
+                            else:
+                                logging.error(f"Failed to send email {eid}")
+
+                    self.last_processed_id = latest_id
+
+            self.fetcher.logout()
+        except Exception as e:
+            logging.error(f"Error: {e}")
 
 if __name__ == "__main__":
     monitor = EmailMonitor(Config)
     monitor.run()
+
